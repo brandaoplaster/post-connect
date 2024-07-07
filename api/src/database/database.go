@@ -5,7 +5,7 @@ import (
 	"database/sql"
 )
 
-func connect() (*sql.DB, error) {
+func Connect() (*sql.DB, error) {
 	database, erro := sql.Open("mysql", config.APIURL)
 
 	if erro = database.Ping(); erro != nil {
