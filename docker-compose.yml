@@ -1,14 +1,63 @@
-version: "3.7"
-
 services:
-  post_db:
-    image: postgres:13
-    restart: always
-    tty: true
-    volumes:
-      - .pgdata:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_PASSWORD=root
-      - POSTGRES_DB=post
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: post_connect_dev
     ports:
-      - "5432:5432"
+      - "5000:5000"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=development
+    depends_on:
+      post_db:
+        condition: service_healthy
+
+  api-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: post_connect_prod
+    ports:
+      - "5001:5000"
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+
+  post_db:
+    image: mysql:8
+    container_name: post_db
+    env_file:
+      - .env
+    restart: always
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ./api/src/database/migrations:/docker-entrypoint-initdb.d
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  mysqldata:
