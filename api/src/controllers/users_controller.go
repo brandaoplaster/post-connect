@@ -9,6 +9,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 func Create(write http.ResponseWriter, request *http.Request) {
@@ -50,7 +53,30 @@ func Index(write http.ResponseWriter, request *http.Request) {
 }
 
 func Show(write http.ResponseWriter, request *http.Request) {
+	parameters := mux.Vars(request)
 
+	userId, error := strconv.ParseUint(parameters["userId"], 10, 64)
+
+	if error != nil {
+		http.Error(write, "ID inválido", http.StatusBadRequest)
+		return
+	}
+
+	db, erro := database.Connect()
+	if erro != nil {
+		http.Error(write, erro.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
+	repository := repositories.NewUserRepository(db)
+	user, erro := repository.FindById(userId)
+	if erro != nil {
+		http.Error(write, erro.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(write).Encode(user)
 }
 
 func Update(write http.ResponseWriter, request *http.Request) {
