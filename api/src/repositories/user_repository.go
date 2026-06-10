@@ -129,3 +129,29 @@ func (repository Users) All() ([]models.User, error) {
 	}
 	return users, nil
 }
+
+func (repository Users) Update(id uint64, user models.User) (models.User, error) {
+	statement, erro := repository.database.Prepare(
+		"update users set name = ?, nickname = ?, email = ? where id = ?",
+	)
+	if erro != nil {
+		return models.User{}, erro
+	}
+	defer statement.Close()
+
+	result, erro := statement.Exec(user.Name, user.NickName, user.Email, id)
+	if erro != nil {
+		return models.User{}, erro
+	}
+
+	rowsAffected, erro := result.RowsAffected()
+	if erro != nil {
+		return models.User{}, erro
+	}
+
+	if rowsAffected == 0 {
+		return models.User{}, fmt.Errorf("user not found")
+	}
+
+	return repository.FindById(id)
+}
