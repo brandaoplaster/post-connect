@@ -155,3 +155,29 @@ func (repository Users) Update(id uint64, user models.User) (models.User, error)
 
 	return repository.FindById(id)
 }
+
+func (repository Users) Delete(id uint64) error {
+	statement, erro := repository.database.Prepare(
+		"delete from users where id = ?",
+	)
+	if erro != nil {
+		return erro
+	}
+	defer statement.Close()
+
+	result, erro := statement.Exec(id)
+	if erro != nil {
+		return erro
+	}
+
+	rowsAffected, erro := result.RowsAffected()
+	if erro != nil {
+		return  erro
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
