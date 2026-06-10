@@ -98,3 +98,34 @@ func (repositiry Users) FindById(id uint64) (models.User, error) {
 	}
 	return user, nil
 }
+
+func (repository Users) All() ([]models.User, error) {
+	result, erro := repository.database.Query(
+		"select id, name, nickname, email, created_at, updated_at from users",
+	)
+
+	if erro != nil {
+		return []models.User{}, erro
+	}
+
+	defer result.Close()
+
+	var users []models.User
+
+	for result.Next() {
+		var user models.User
+
+		if erro = result.Scan(
+			&user.ID,
+			&user.Name,
+			&user.NickName,
+			&user.Email,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		); erro != nil {
+			return nil, erro
+		}
+		users = append(users, user)
+	}
+	return users, nil
+}
