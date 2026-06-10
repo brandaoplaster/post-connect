@@ -49,7 +49,21 @@ func Create(write http.ResponseWriter, request *http.Request) {
 }
 
 func Index(write http.ResponseWriter, request *http.Request) {
+	db, erro := database.Connect()
+	if erro != nil {
+		http.Error(write, erro.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
 
+	repository := repositories.NewUserRepository(db)
+	users, erro := repository.All()
+	if erro != nil {
+		http.Error(write, erro.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(write).Encode(users)
 }
 
 func Show(write http.ResponseWriter, request *http.Request) {
