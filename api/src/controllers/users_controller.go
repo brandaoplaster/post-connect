@@ -1,100 +1,63 @@
 package controllers
 
 import (
-	"api/api/src/database"
 	"api/api/src/models"
 	"api/api/src/repositories"
 	"encoding/json"
-	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 )
 
-func Create(write http.ResponseWriter, request *http.Request) {
+type UsersController struct {
+	repo *repositories.Users
+}
+
+func NewUsersController(repo *repositories.Users) *UsersController {
+	return &UsersController{repo: repo}
+}
+
+func (userRepo *UsersController) Index(write http.ResponseWriter, request *http.Request) {
+	users, erro := userRepo.repo.All()
+	if erro != nil {
+		http.Error(write, erro.Error(), http.StatusInternalServerError)
+		return
+	}
+	write.WriteHeader(http.StatusOK)
+    json.NewEncoder(write).Encode(users)
+}
+
+func (userRepo *UsersController) Create(write http.ResponseWriter, request *http.Request) {
 	response, erro := io.ReadAll(request.Body)
 	if erro != nil {
-		log.Fatal(erro)
+		http.Error(write, erro.Error(), http.StatusUnprocessableEntity)
+		return
 	}
 
 	var user models.User
 	if erro = json.Unmarshal(response, &user); erro != nil {
-		log.Fatal(erro)
+		http.Error(write, erro.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if erro = user.Prepare("Create"); erro != nil {
-		log.Fatal(erro)
+		http.Error(write, erro.Error(), http.StatusBadRequest)
 		return
 	}
 
-	db, erro := database.Connect()
-	if erro != nil {
-		log.Fatal(erro)
-		return
-	}
-	defer db.Close()
-
-	repository := repositories.NewUserRepository(db)
-	user.ID, erro = repository.Create(user)
-	if erro != nil {
-		log.Fatal(erro)
-		return
-	}
-
-	write.Write([]byte(fmt.Sprintf("id insert %d", user.ID)))
-}
-
-func Index(write http.ResponseWriter, request *http.Request) {
-	db, erro := database.Connect()
-	if erro != nil {
-		http.Error(write, erro.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	repository := repositories.NewUserRepository(db)
-	users, erro := repository.All()
+	user, erro = userRepo.repo.Create(user)
 	if erro != nil {
 		http.Error(write, erro.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(write).Encode(users)
-}
-
-func Show(write http.ResponseWriter, request *http.Request) {
-	parameters := mux.Vars(request)
-
-	userId, error := strconv.ParseUint(parameters["userId"], 10, 64)
-
-	if error != nil {
-		http.Error(write, "ID inválido", http.StatusBadRequest)
-		return
-	}
-
-	db, erro := database.Connect()
-	if erro != nil {
-		http.Error(write, erro.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	repository := repositories.NewUserRepository(db)
-	user, erro := repository.FindById(userId)
-	if erro != nil {
-		http.Error(write, erro.Error(), http.StatusInternalServerError)
-		return
-	}
-
+	write.WriteHeader(http.StatusCreated)
 	json.NewEncoder(write).Encode(user)
 }
 
-func Update(write http.ResponseWriter, request *http.Request) {
+func (userRepo *UsersController) Show(write http.ResponseWriter, request *http.Request) {
 	parameters := mux.Vars(request)
 
 	userId, error := strconv.ParseUint(parameters["userId"], 10, 64)
@@ -104,7 +67,27 @@ func Update(write http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	body, erro := ioutil.ReadAll(request.Body)
+	user, erro := userRepo.repo.FindById(userId)
+	if erro != nil {
+		http.Error(write, erro.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	write.WriteHeader(http.StatusOK)
+	json.NewEncoder(write).Encode(user)
+}
+
+func (userRepo *UsersController) Update(write http.ResponseWriter, request *http.Request) {
+	parameters := mux.Vars(request)
+
+	userId, error := strconv.ParseUint(parameters["userId"], 10, 64)
+
+	if error != nil {
+		http.Error(write, "ID inválido", http.StatusBadRequest)
+		return
+	}
+
+	body, erro := io.ReadAll(request.Body)
 	if erro != nil {
 		http.Error(write, erro.Error(), http.StatusUnprocessableEntity)
 		return
@@ -121,24 +104,17 @@ func Update(write http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	db, erro := database.Connect()
-	if erro != nil {
-		http.Error(write, erro.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	repository := repositories.NewUserRepository(db)
-	user, erro = repository.Update(userId, user)
+	user, erro = userRepo.repo.Update(userId, user)
 	if erro != nil {
 		http.Error(write, erro.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	write.WriteHeader(http.StatusOK)
 	json.NewEncoder(write).Encode(user)
 }
 
-func Delete(write http.ResponseWriter, request *http.Request) {
+func (userRepo *UsersController) Delete(write http.ResponseWriter, request *http.Request) {
 	parameters := mux.Vars(request)
 
 	userId, error := strconv.ParseUint(parameters["userId"], 10, 64)
@@ -148,20 +124,8 @@ func Delete(write http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	db, erro := database.Connect()
+	erro := userRepo.repo.Delete(userId)
 	if erro != nil {
-		http.Error(write, erro.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-
-	repository := repositories.NewUserRepository(db)
-	erro = repository.Delete(userId)
-	if erro != nil {
-		if erro.Error() == "user not found" {
-			http.Error(write, erro.Error(), http.StatusNotFound)
-			return
-		}
 		http.Error(write, erro.Error(), http.StatusInternalServerError)
 		return
 	}
