@@ -14,26 +14,30 @@ func NewUserRepository(database *sql.DB) *Users {
 	return &Users{database}
 }
 
-func (repositiry Users) Create(user models.User) (uint64, error) {
+
+func (repositiry Users) Create(user models.User) (models.User, error) {
 	statement, erro := repositiry.database.Prepare(
 		"insert into users (name, nickname, email, password) values(?, ?, ?, ?)",
 	)
 	if erro != nil {
-		return 0, erro
+		return models.User{}, erro
 	}
 	defer statement.Close()
 
 	result, erro := statement.Exec(user.Name, user.NickName, user.Email, user.Password)
 	if erro != nil {
-		return 0, erro
+		return models.User{}, erro
 	}
 
 	lastInsert, erro := result.LastInsertId()
 	if erro != nil {
-		return 0, erro
+		return models.User{}, erro
 	}
 
-	return uint64(lastInsert), nil
+	user.ID = uint64(lastInsert)
+	user.Password = ""
+
+	return user, nil
 }
 
 func (repositiry Users) SearchByNameOrNickname(nameOrNickname string) ([]models.User, error) {
