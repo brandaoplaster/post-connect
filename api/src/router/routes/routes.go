@@ -2,7 +2,6 @@ package routes
 
 import (
 	"net/http"
-
 	"github.com/gorilla/mux"
 )
 
@@ -13,8 +12,8 @@ type Route struct {
 	Authenticated bool
 }
 
-func ConfigureRoutes(router *mux.Router) *mux.Router {
-	routes := userRoutes
+func ConfigureRoutes(router *mux.Router, handler *Handlers) *mux.Router {
+	routes := userRoutes(handler)
 
 	for _, route := range routes {
 		router.HandleFunc(route.URI, route.Function).Methods(route.Method)
